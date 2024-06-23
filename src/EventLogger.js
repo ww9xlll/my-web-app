@@ -1,45 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle } from 'lucide-react';
-
-const AnalogClock = () => {
-  const [time, setTime] = useState(new Date());
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const secondsDegrees = time.getSeconds() * 6;
-  const minutesDegrees = time.getMinutes() * 6 + time.getSeconds() * 0.1;
-  const hoursDegrees = time.getHours() * 30 + time.getMinutes() * 0.5;
-
-  return (
-    <div className="relative w-32 h-32 rounded-full border-4 border-gray-200">
-      <div className="absolute inset-0 flex items-center justify-center">
-        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </div>
-      <div 
-        className="absolute top-1/2 left-1/2 w-1 h-16 bg-black origin-bottom"
-        style={{ transform: `translate(-50%, -100%) rotate(${hoursDegrees}deg)` }}
-      />
-      <div 
-        className="absolute top-1/2 left-1/2 w-0.5 h-20 bg-black origin-bottom"
-        style={{ transform: `translate(-50%, -100%) rotate(${minutesDegrees}deg)` }}
-      />
-      <div 
-        className="absolute top-1/2 left-1/2 w-0.5 h-20 bg-red-500 origin-bottom"
-        style={{ transform: `translate(-50%, -100%) rotate(${secondsDegrees}deg)` }}
-      />
-    </div>
-  );
-};
+import { PlusCircle, Clock, Calendar, Music, Book, Briefcase, Coffee, Edit2, Check, X } from 'lucide-react';
+import AnalogClock from './AnalogClock';
 
 const EventLogger = () => {
   const [events, setEvents] = useState([]);
-  const [eventType, setEventType] = useState('');
+  const [eventType, setEventType] = useState('工作');
   const [note, setNote] = useState('');
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState('');
+  const [editingEventId, setEditingEventId] = useState(null);
+
+  useEffect(() => {
+    // Load events from localStorage when the component mounts
+    const storedEvents = localStorage.getItem('events');
+    if (storedEvents) {
+      setEvents(JSON.parse(storedEvents));
+    }
+
+    const now = new Date();
+    setStartTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  }, []);
+
+  useEffect(() => {
+    // Save events to localStorage whenever they change
+    localStorage.setItem('events', JSON.stringify(events));
+  }, [events]);
 
   const addEvent = () => {
     if (!eventType || !startTime || !duration) return;
@@ -56,7 +41,7 @@ const EventLogger = () => {
   };
 
   const resetForm = () => {
-    setEventType('');
+    setEventType('工作');
     setNote('');
     setStartTime('');
     setDuration('');
@@ -71,83 +56,201 @@ const EventLogger = () => {
     return endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const updateEventEndTime = (id, newEndTime) => {
+  const updateEvent = (id, updatedFields) => {
     setEvents(events.map(event => 
-      event.id === id ? { ...event, endTime: newEndTime } : event
+      event.id === id 
+        ? { 
+            ...event, 
+            ...updatedFields, 
+            endTime: calculateEndTime(updatedFields.startTime || event.startTime, updatedFields.duration || event.duration)
+          } 
+        : event
     ));
   };
 
+  const getEventIcon = (type) => {
+    switch (type) {
+      case '工作': return <Briefcase size={24} />;
+      case '学习': return <Book size={24} />;
+      case '娱乐': return <Music size={24} />;
+      default: return <Coffee size={24} />;
+    }
+  };
+
+  const containerStyle = {
+    minHeight: '100vh',
+    padding: '24px',
+    background: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
+    boxSizing: 'border-box',
+  };
+
+  const contentStyle = {
+    maxWidth: '800px',
+    margin: '0 auto',
+    background: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: '20px',
+    padding: '24px',
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px',
+    border: 'none',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: '16px',
+    fontSize: '16px',
+    transition: 'all 0.3s ease',
+  };
+
+  const timeInputStyle = {
+    ...inputStyle,
+    paddingRight: '5px',
+    marginBottom: 0,
+  };
+
+  const timeInputContainerStyle = {
+    position: 'relative',
+    flex: 1,
+  };
+
+  const buttonStyle = {
+    width: '100%',
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    padding: '12px',
+    borderRadius: '10px',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.3s ease',
+  };
+
+  const eventCardStyle = {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: '16px',
+    borderRadius: '10px',
+    marginBottom: '16px',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    transition: 'all 0.3s ease',
+  };
+
+  const iconButtonStyle = {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    marginLeft: '8px',
+  };
+
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
-      <div className="flex flex-col items-center mb-6">
-        <AnalogClock />
-      </div>
-
-      <div className="space-y-4">
-        <select 
-          value={eventType}
-          onChange={(e) => setEventType(e.target.value)}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">选择事件类型</option>
-          <option value="工作">工作</option>
-          <option value="学习">学习</option>
-          <option value="娱乐">娱乐</option>
-          <option value="其他">其他</option>
-        </select>
-
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="事件备注"
-          className="w-full p-2 border rounded"
-        />
-
-        <div className="flex space-x-2">
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-1/2 p-2 border rounded"
-          />
-          <input
-            type="number"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            placeholder="持续时间(分钟)"
-            className="w-1/2 p-2 border rounded"
-          />
+    <div style={containerStyle}>
+      <div style={contentStyle}>
+        <div style={{display: 'flex', justifyContent: 'center', marginBottom: '24px'}}>
+          <AnalogClock />
         </div>
 
-        <button
-          onClick={addEvent}
-          className="w-full bg-blue-500 text-white p-2 rounded flex items-center justify-center"
-        >
-          <PlusCircle className="mr-2" />
-          添加事件
-        </button>
-      </div>
+        <div style={{marginBottom: '24px'}}>
+          <select 
+            value={eventType}
+            onChange={(e) => setEventType(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="工作">工作</option>
+            <option value="学习">学习</option>
+            <option value="娱乐">娱乐</option>
+            <option value="其他">其他</option>
+          </select>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-bold mb-4">事件历史</h2>
-        {events.map(event => (
-          <div key={event.id} className="bg-gray-100 p-4 rounded mb-2">
-            <div className="font-bold">{event.type}</div>
-            <div>{event.note}</div>
-            <div>开始时间: {event.startTime}</div>
-            <div>持续时间: {event.duration} 分钟</div>
-            <div className="flex items-center">
-              <span className="mr-2">结束时间:</span>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="备注"
+            style={inputStyle}
+          />
+
+          <div style={{display: 'flex', gap: '16px', marginBottom: '16px'}}>
+            <div style={timeInputContainerStyle}>
               <input
                 type="time"
-                value={event.endTime}
-                onChange={(e) => updateEventEndTime(event.id, e.target.value)}
-                className="border rounded p-1"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                style={timeInputStyle}
               />
             </div>
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="持续时间(分钟)"
+              style={{...inputStyle, marginBottom: 0, flex: 1}}
+            />
           </div>
-        ))}
+
+          <button onClick={addEvent} style={buttonStyle}>
+            <PlusCircle style={{marginRight: '8px'}} />
+            添加事件
+          </button>
+        </div>
+
+        <div>
+          <h2 style={{fontSize: '24px', fontWeight: 'bold', marginBottom: '16px', color: 'white'}}>事件历史</h2>
+          {events.map(event => (
+            <div key={event.id} style={eventCardStyle}>
+              <div style={{display: 'flex', alignItems: 'center', marginBottom: '8px'}}>
+                {getEventIcon(event.type)}
+                <span style={{fontWeight: 'bold', marginLeft: '8px', flexGrow: 1}}>{event.type}</span>
+                {editingEventId === event.id ? (
+                  <>
+                    <button onClick={() => setEditingEventId(null)} style={iconButtonStyle}>
+                      <Check size={20} color="green" />
+                    </button>
+                    <button onClick={() => setEditingEventId(null)} style={iconButtonStyle}>
+                      <X size={20} color="red" />
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setEditingEventId(event.id)} style={iconButtonStyle}>
+                    <Edit2 size={20} />
+                  </button>
+                )}
+              </div>
+              <div style={{display: 'flex', alignItems: 'center', marginTop: '8px'}}>
+                <Clock size={16} style={{marginRight: '4px'}} />
+                {editingEventId === event.id ? (
+                  <input
+                    type="time"
+                    value={event.startTime}
+                    onChange={(e) => updateEvent(event.id, { startTime: e.target.value })}
+                    style={{...inputStyle, padding: '4px', marginBottom: 0, marginRight: '8px'}}
+                  />
+                ) : (
+                  <span>{event.startTime} - {event.endTime}</span>
+                )}
+              </div>
+              <div style={{display: 'flex', alignItems: 'center'}}>
+                <Calendar size={16} style={{marginRight: '4px'}} />
+                {editingEventId === event.id ? (
+                  <input
+                    type="number"
+                    value={event.duration}
+                    onChange={(e) => updateEvent(event.id, { duration: e.target.value })}
+                    style={{...inputStyle, padding: '4px', marginBottom: 0, marginRight: '8px'}}
+                  />
+                ) : (
+                  <span>{event.duration}</span>
+                )}
+                <span>分钟</span>
+              </div>
+              <div>{event.note}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
